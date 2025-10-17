@@ -1,11 +1,11 @@
 package clientTests.alikindoger.com;
 
-import org.java_websocket.client.WebSocketClient;
-import org.java_websocket.handshake.ServerHandshake;
-
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Scanner;
+
+import org.java_websocket.client.WebSocketClient;
+import org.java_websocket.handshake.ServerHandshake;
 
 public class ConsoleGameClient {
 
@@ -23,7 +23,8 @@ public class ConsoleGameClient {
                 System.out.println("CONECTADO al servidor Netty.");
                 System.out.println("Escribe tus mensajes y presiona Enter para enviar:");
 
-                String loginMsg = "{\"type\":\"LOGIN\", \"user\":\"JugadorAlfa\", \"pass\":\"P@ssword123\"}";
+                //String loginMsg = "{\"type\":\"LOGIN\", \"user\":\"JugadorAlfa\", \"pass\":\"P@ssword123\"}";
+                String loginMsg = "{\"type\":\"SIGNIN\",\"user\":\"JugadorBeta\",\"email\":\"betaEmail@gmail.com\",\"pass\":\"P@ssword123\"}";
                 send(loginMsg);
                 System.out.println("-> Enviado: " + loginMsg);
             }
@@ -49,7 +50,7 @@ public class ConsoleGameClient {
         // Conectar al servidor
         client.connect();
 
-        // --- 3. Hilo para Lectura de Consola ---
+        // lecutra
         
         Scanner scanner = new Scanner(System.in);
         // Bucle infinito para leer la entrada del usuario mientras el cliente esté abierto
