@@ -59,20 +59,6 @@ public class GameLogicHandler extends SimpleChannelInboundHandler<TextWebSocketF
 			break;
 		}
         
-        
-        
-        if (request.contains("MOVE")) {
-            String response = "SERVER_ACK: Movimiento recibido y procesado.";
-            ctx.channel().writeAndFlush(new TextWebSocketFrame(response));
-            
-        } else if (request.contains("CHAT")) {
-             String response = "SERVER_ACK: Mensaje de chat enviado.";
-            ctx.channel().writeAndFlush(new TextWebSocketFrame(response));
-            
-        } else if (request.contains("\"type\":\"LOGIN\"")) {
-            handleLoginMessage(incoming, request);
-            
-        }
     }
     
     private void handleLogoutMessage() {

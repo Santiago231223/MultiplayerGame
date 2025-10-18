@@ -50,26 +50,5 @@ public class ConsoleGameClient {
         // Conectar al servidor
         client.connect();
 
-        // lecutra
-        
-        Scanner scanner = new Scanner(System.in);
-        // Bucle infinito para leer la entrada del usuario mientras el cliente esté abierto
-        while (!client.isClosed()) {
-            String input = scanner.nextLine();
-            
-            if (input.equalsIgnoreCase("exit")) {
-                client.close();
-                break;
-            }
-            
-            // Construye un mensaje de CHAT básico
-            String chatMsg = "{\"type\":\"CHAT\", \"msg\":\"" + input + "\"}";
-            
-            // Envía el mensaje al servidor
-            if (client.isOpen()) {
-                client.send(chatMsg);
-            }
-        }
-        scanner.close();
     }
 }
