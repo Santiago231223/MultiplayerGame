@@ -6,6 +6,7 @@ public class DataBaseTest {
         
         // --- Prueba de Registro ---
         System.out.println("--- REGISTRO ---");
+
         boolean registrado = DatabaseManager.registrarUsuario("JugadorAlfa", "P@ssword123", "alfa@juego.com");
         if (registrado) {
             System.out.println("Registro exitoso para JugadorAlfa.");

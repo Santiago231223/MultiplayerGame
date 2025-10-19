@@ -23,8 +23,8 @@ public class ConsoleGameClient {
                 System.out.println("CONECTADO al servidor Netty.");
                 System.out.println("Escribe tus mensajes y presiona Enter para enviar:");
 
-                //String loginMsg = "{\"type\":\"LOGIN\", \"user\":\"JugadorAlfa\", \"pass\":\"P@ssword123\"}";
-                String loginMsg = "{\"type\":\"SIGNIN\",\"user\":\"JugadorBeta\",\"email\":\"betaEmail@gmail.com\",\"pass\":\"P@ssword123\"}";
+                String loginMsg = "{\"type\":\"LOGIN\", \"user\":\"JugadorAlfa\", \"pass\":\"P@ssword123\"}";
+                //String loginMsg = "{\"type\":\"SIGNIN\",\"user\":\"JugadorBeta\",\"email\":\"betaEmail@gmail.com\",\"pass\":\"P@ssword123\"}";
                 send(loginMsg);
                 System.out.println("-> Enviado: " + loginMsg);
             }

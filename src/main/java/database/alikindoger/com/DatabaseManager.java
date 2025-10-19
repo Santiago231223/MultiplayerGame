@@ -1,6 +1,11 @@
 package database.alikindoger.com;
 import java.sql.*;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.mindrot.jbcrypt.BCrypt;
+
+import redis.alikindoger.com.RedisManager;
 
 public class DatabaseManager {
 
@@ -45,7 +50,7 @@ public class DatabaseManager {
         String hashedPassword = BCrypt.hashpw(password, BCrypt.gensalt());
 
         // 2. Definir la consulta SQL
-        String sql = "INSERT INTO usuarios (nombre_usuario, contrasena_hash, email) VALUES (?, ?, ?)";
+        String sql = "INSERT INTO users (username, password_hash, email) VALUES (?, ?, ?)";
 
         try (Connection conn = getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -79,7 +84,7 @@ public class DatabaseManager {
     public static int iniciarSesion(String nombreUsuario, String password) {
         int usuarioId = -1;
         // Solo necesitamos el hash y el ID
-        String sql = "SELECT id, contrasena_hash FROM usuarios WHERE nombre_usuario = ?";
+        String sql = "SELECT user_id, password_hash FROM users WHERE username = ?";
 
         try (Connection conn = getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -92,8 +97,8 @@ public class DatabaseManager {
                 
                 if (rs.next()) {
                     // 3. Obtener el hash almacenado
-                    String hashedPassword = rs.getString("contrasena_hash");
-                    usuarioId = rs.getInt("id");
+                    String hashedPassword = rs.getString("password_hash");
+                    usuarioId = rs.getInt("user_id");
 
                     // 4. Verificar la contraseña con BCrypt
                     // BCrypt.checkpw compara la contraseña en texto plano con el hash
@@ -115,7 +120,7 @@ public class DatabaseManager {
     
     public static void ResetTable() {
     	
-        String sql = "TRUNCATE TABLE USUARIOS";
+        String sql = "TRUNCATE TABLE users";
         
         try(Connection conn = getConnection();
                 PreparedStatement pstmt = conn.prepareStatement(sql)){
@@ -131,5 +136,69 @@ public class DatabaseManager {
 
     	
     }
+    
+ // --------------------------------------------------------------------------
+ // MÉTODO DE CARGA DE PERSONAJES (SOLO DEVUELVE EL PRIMERO)
+ // --------------------------------------------------------------------------
+    
+    public static Map<String, String> loadCharacterData(String username) {
+        
+        // los datos del personaje que pertenece al 'username'.
+        String sql = "SELECT c.char_id, c.char_name, c.level, c.experience, c.pos_x, c.pos_y " +
+                     "FROM characters c JOIN users u ON c.user_id = u.user_id " +
+                     "WHERE u.username = ? LIMIT 1"; // esta linea carga el primer personaje
+        
+        Map<String, String> charData = new HashMap<>();
+
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            
+            ps.setString(1, username);
+            
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    charData.put("char_id", String.valueOf(rs.getInt("char_id")));
+                    charData.put("char_name", rs.getString("char_name"));
+                    charData.put("level", String.valueOf(rs.getInt("level")));
+                    charData.put("experience", String.valueOf(rs.getInt("experience")));
+                    charData.put("x", String.valueOf(rs.getInt("pos_x")));
+                    charData.put("y", String.valueOf(rs.getInt("pos_y")));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Error al cargar datos del personaje: " + e.getMessage());
+        }
+        return charData;
+    }
+    
+    public static boolean saveCharacterData(String charId, Map<String,String> data) {
+    	
+    	String sql = "UPDATE characters SET pos_x = ?, pos_y = ?, level = ?, experience = ?, last_login = NOW() WHERE char_id = ?";
+    	
+    	try ( Connection conn = getConnection();
+    			PreparedStatement pstmt = conn.prepareStatement(sql)){
+    		
+    		pstmt.setInt(1, Integer.valueOf(data.get("x")));
+    		pstmt.setInt(2, Integer.valueOf(data.get("y")));
+    		pstmt.setInt(3, Integer.valueOf(data.get("level")));
+    		pstmt.setInt(4, Integer.valueOf(data.get("experience")));
+    		pstmt.setInt(5, Integer.valueOf(charId));
+
+    		int rows = pstmt.executeUpdate();
+    		if(rows>0) {
+    			System.out.println("[DB]: Player save succesful in DB");
+    			return true;
+    		}else {
+    			System.out.println("[DB]: Player couldnt save");
+    			return false;
+    		}
+    		
+    	}catch(SQLException e){
+            System.err.println("[DB]: Error saving character " + e.getMessage());
+    	}
+    	
+    	return true;
+    }
+    
     
 }
