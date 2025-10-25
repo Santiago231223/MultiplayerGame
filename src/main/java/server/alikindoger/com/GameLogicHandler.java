@@ -5,6 +5,8 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelId;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.group.ChannelGroup;
+import io.netty.channel.group.ChannelMatcher;
+import io.netty.channel.group.ChannelMatchers;
 import io.netty.channel.group.DefaultChannelGroup;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.util.concurrent.GlobalEventExecutor;
@@ -63,13 +65,49 @@ public class GameLogicHandler extends SimpleChannelInboundHandler<TextWebSocketF
 		case "LOGOUT":
 			handleLogoutMessage();
 			break;			
+		case "PLAYER_MOVE":
+			handlePlayerMove(incoming,jsonObject);
+			break;
 		default:
 			break;
 		}
         
     }
     
-    private void handleLogoutMessage() {
+    private void handlePlayerMove(Channel client, JsonObject request) {
+		
+    	String charId = connectedCharacters.get(client.id());
+    	
+    	if(charId == null) {
+    		return; //jugador no autenticado
+    	}
+    	
+    	String newX = request.get("x").getAsString();
+    	String newY = request.get("y").getAsString();
+    	
+    	try(Jedis jedis = RedisManager.getResource()){
+    		
+    		String redisKey = "char:" + charId;
+    		jedis.hset(redisKey,"x",newX);
+    		jedis.hset(redisKey,"y",newY);
+    		
+    	}catch (Exception e) {
+			// TODO: handle exception
+		}
+    	
+    	String broadcastMsg = String.format(
+    	        "{\"type\":\"PLAYER_POS\", \"char_id\":%s, \"x\":%s, \"y\":%s}",
+    	        charId, newX, newY
+    	    );
+    	    
+    	    // send to everyone
+    	
+    	    channels.writeAndFlush(new TextWebSocketFrame(broadcastMsg), ChannelMatchers.isNot(client));
+    	
+    	
+	}
+
+	private void handleLogoutMessage() {
 		// TODO Auto-generated method stub
 		
 	}
@@ -119,12 +157,12 @@ public class GameLogicHandler extends SimpleChannelInboundHandler<TextWebSocketF
             JsonObject jsonObject = gson.fromJson(message, JsonObject.class);
             String username = jsonObject.get("user").getAsString();
             String password = jsonObject.get("pass").getAsString();
-
+  
             System.out.println("Intentando iniciar sesión para: " + username);
 
             //verify with DB
             int playerId = DatabaseManager.iniciarSesion(username, password);
-
+            
             if (playerId != -1) {
 
                 
@@ -135,6 +173,8 @@ public class GameLogicHandler extends SimpleChannelInboundHandler<TextWebSocketF
                 if (charData.isEmpty()) { 
                     client.writeAndFlush(new TextWebSocketFrame("{\"type\":\"LOGIN_FAILED\", \"msg\":\"No se encontró personaje\"}"));
                     return;
+                }else {
+                	System.out.println("Error en inicio de sesión de "+username);
                 }
 
                 String charId = charData.get("char_id");
@@ -156,13 +196,22 @@ public class GameLogicHandler extends SimpleChannelInboundHandler<TextWebSocketF
                 }
                 //keep track of connected players and their connections
                 connectedCharacters.put(client.id(), charId); 
+                //keep track of connections
+                channels.add(client);
                 
+                //private message for client logging
                 String loginOkMsg = String.format(
                         "{\"type\":\"LOGIN_OK\", \"char_id\":%s, \"name\":\"%s\", \"x\":%s, \"y\":%s}",
                         charData.get("char_id"), charData.get("char_name"), charData.get("x"), charData.get("y"));
                 
                 client.writeAndFlush(new TextWebSocketFrame(loginOkMsg));
                 System.out.println("Personaje " + charData.get("char_name") + " (ID: " + charId + ") cacheado en Redis y conectado.");
+                
+                //public message
+                String joinMsg = String.format("{\"type\":\"PLAYER_JOIN\", \"char_id\":%s, \"name\":\"%s\", \"x\":%s, \"y\":%s}",
+                        charId, charData.get("char_name"), charData.get("x"), charData.get("y"));
+                //we send it to all client except ours
+                channels.writeAndFlush(new TextWebSocketFrame(joinMsg),ChannelMatchers.isNot(client));
                 
             } else {
                //mariaDB credentials incorrect
@@ -186,6 +235,8 @@ public class GameLogicHandler extends SimpleChannelInboundHandler<TextWebSocketF
     	
     	//connected player removal
     	String charId = connectedCharacters.remove(client.id());
+    	//connection removal
+    	channels.remove(client);
     	String redisKey = "char:" + charId;
 
     	
@@ -195,6 +246,28 @@ public class GameLogicHandler extends SimpleChannelInboundHandler<TextWebSocketF
     		return;
     	}
     	
+    	try(Jedis jedis = RedisManager.getResource()){
+    		
+    		//get all the data
+    		Map<String, String> finalState = jedis.hgetAll(redisKey);   
+    		
+    		if(finalState != null && !finalState.isEmpty()) {
+    			
+    			if(DatabaseManager.saveCharacterData(charId, finalState)) {
+    				System.out.println("[DB] Character data correctly saved");
+    			}
+    			
+    		}
+    	}
+    	
+    	//send data to the rest of clients
+    	String leaveMsg = String.format(
+    	        "{\"type\":\"PLAYER_LEAVE\", \"char_id\":%s}",
+    	        charId
+    	    );
+    	channels.writeAndFlush(new TextWebSocketFrame(leaveMsg),ChannelMatchers.isNot(client));
+    	
+    	
     	//jedis
     	try (Jedis jedis = RedisManager.getResource()){
     		
@@ -203,10 +276,7 @@ public class GameLogicHandler extends SimpleChannelInboundHandler<TextWebSocketF
     		jedis.del(redisKey);
     		
     		System.out.println("[Redis]: Cleaned cache with id: " + charId + ".");
-    		
     		//persistency
-    		
-    		System.out.println(finalState);
     		
     		
     		

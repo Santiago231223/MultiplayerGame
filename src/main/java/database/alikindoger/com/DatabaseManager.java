@@ -178,8 +178,8 @@ public class DatabaseManager {
     	try ( Connection conn = getConnection();
     			PreparedStatement pstmt = conn.prepareStatement(sql)){
     		
-    		pstmt.setInt(1, Integer.valueOf(data.get("x")));
-    		pstmt.setInt(2, Integer.valueOf(data.get("y")));
+    		pstmt.setFloat(1, Float.valueOf(data.get("x")));
+    		pstmt.setFloat(2, Float.valueOf(data.get("y")));
     		pstmt.setInt(3, Integer.valueOf(data.get("level")));
     		pstmt.setInt(4, Integer.valueOf(data.get("experience")));
     		pstmt.setInt(5, Integer.valueOf(charId));
